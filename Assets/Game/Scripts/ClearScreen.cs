@@ -7,6 +7,8 @@ public class ClearScreen : MonoBehaviour
 {
     public CanvasGroup clearGroup;
     public Text chapterText, clearText, timeCodeText, recordText;
+    public Text extraText;            // 한 줄 더 (없어도 됨)
+    public string nextScene = "";     // 비어 있으면 '추후 제작' 화면
     public Button nextButton;
 
     public CanvasGroup walkGroup;
@@ -30,6 +32,7 @@ public class ClearScreen : MonoBehaviour
         soonGroup.alpha = 0f; soonGroup.gameObject.SetActive(false);
         nextButton.gameObject.SetActive(false);
         Hide(chapterText); Hide(clearText); Hide(timeCodeText); Hide(recordText);
+        if (extraText != null) Hide(extraText);
 
         float sec = GameState.clearSeconds;
         if (sec >= 0)
@@ -59,6 +62,7 @@ public class ClearScreen : MonoBehaviour
         yield return new WaitForSeconds(0.8f);
         SoundManager.Play("blip", 1f);
         yield return UIFx.FadeGraphic(timeCodeText, 1f, 0.6f);
+        if (extraText != null) { yield return new WaitForSeconds(0.5f); yield return UIFx.FadeGraphic(extraText, 0.8f, 0.8f); }
         yield return new WaitForSeconds(0.6f);
         yield return UIFx.FadeGraphic(recordText, 0.6f, 1.2f);
         yield return new WaitForSeconds(1.0f);
@@ -101,15 +105,26 @@ public class ClearScreen : MonoBehaviour
             yield return new WaitForSeconds(0.55f);
         }
 
+        // 다음 챕터가 있으면 그대로 이어서 시작
+        if (!string.IsNullOrEmpty(nextScene))
+        {
+            SoundManager.Play("static", 0.6f);
+            StartCoroutine(glitch.Burst(0.5f, 0.6f));
+            yield return new WaitForSeconds(0.4f);
+            SceneLoader.I.Load(nextScene, 1.0f);
+            yield break;
+        }
+
         // 갑자기 화면이 깨짐
         SoundManager.StopAmb();
         SoundManager.Play("static", 1f);
         SoundManager.Play("error", 0.6f);
         StartCoroutine(glitch.Burst(1.1f, 1f));
+        string orig = walkTitle.text;
         for (int i = 0; i < 8; i++)
         {
             corridor.color = i % 2 == 0 ? new Color(1f, 0.3f, 0.3f) : Color.white;
-            walkTitle.text = i % 2 == 0 ? "CHAPTER 2" : "CH4PT3R_?";
+            walkTitle.text = i % 2 == 0 ? orig : "CH4PT3R_?";
             yield return new WaitForSeconds(0.08f);
         }
         walkGroup.alpha = 0f;

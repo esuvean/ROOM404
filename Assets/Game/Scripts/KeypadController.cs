@@ -19,6 +19,8 @@ public class KeypadController : MonoBehaviour
 
     public string answer = "0214";
     public string trap = "0404";
+    public int length = 4;
+    public string trapFlash = "04:04";
     public bool unlocked;
     public Action onUnlocked;
     public Action onTrap;
@@ -63,7 +65,7 @@ public class KeypadController : MonoBehaviour
     {
         if (busy || unlocked) return;
         SoundManager.Play("beep", 0.8f);
-        if (input.Length >= 4) return;
+        if (input.Length >= length) return;
         input += d;
         UpdateDisplay();
     }
@@ -88,7 +90,7 @@ public class KeypadController : MonoBehaviour
     void UpdateDisplay()
     {
         display.color = Green;
-        display.text = input.PadRight(4, '_');
+        display.text = input.PadRight(length, '_');
     }
 
     IEnumerator Success()
@@ -130,10 +132,10 @@ public class KeypadController : MonoBehaviour
         StartCoroutine(UIFx.Shake(body, 0.6f, 14f));
         for (int i = 0; i < 6; i++)
         {
-            display.text = i % 2 == 0 ? "04:04" : "ERROR";
+            display.text = i % 2 == 0 ? trapFlash : "ERROR";
             yield return new WaitForSeconds(i % 2 == 0 ? 0.12f : 0.18f);
         }
-        display.text = "04:04";
+        display.text = trapFlash;
         yield return new WaitForSeconds(0.7f);
         input = "";
         UpdateDisplay();

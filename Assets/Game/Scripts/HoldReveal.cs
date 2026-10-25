@@ -12,6 +12,7 @@ public class HoldReveal : MonoBehaviour, IPointerDownHandler, IPointerUpHandler,
     public CanvasGroup revealGroup;   // THE CLOCK LIES 글자
     public Image glow;                // 보라색 UV 빛
     public float holdTime = 1.5f;
+    public string tapId = "mirror";   // 짧게 탭했을 때 보낼 id
     public bool revealed;
 
     public Func<bool> canHold;        // UV가 선택되어 있는지
@@ -38,7 +39,7 @@ public class HoldReveal : MonoBehaviour, IPointerDownHandler, IPointerUpHandler,
     {
         bool shortTap = Time.time - downTime < 0.35f && (e.position - downPos).magnitude < Screen.height * 0.03f;
         holding = false;
-        if (shortTap && Chapter01Manager.I != null) Chapter01Manager.I.OnTap("mirror");
+        if (shortTap) TapRouter.Send(tapId);
     }
 
     public void OnPointerExit(PointerEventData e) { holding = false; }

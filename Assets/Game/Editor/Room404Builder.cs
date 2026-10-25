@@ -1,6 +1,7 @@
 // =============================================================
 //  메뉴 [04:04 > 씬 전체 자동 생성] 을 누르면
-//  Title / Chapter01_Room404 / Chapter01_Clear 세 개의 씬을
+//  Title / Chapter01_Room404 / Chapter01_Clear
+//  / Chapter02_Corridor / Chapter02_Clear 씬을
 //  기획서(34번 Unity 씬 구성) 대로 자동으로 만들어 줍니다.
 //  (그림, 버튼, 스크립트 연결까지 전부)
 // =============================================================
@@ -43,13 +44,19 @@ public static class Room404Builder
 
         string title = BuildTitle();
         string room = BuildRoom();
-        string clear = BuildClear();
+        string clear = BuildClear("Chapter01_Clear", "CHAPTER 1", "04:04", null, "Chapter02_Corridor",
+                                  "corridor_persp", "CHAPTER 2", "THE LOOP", "");
+        string corridor = BuildCorridor();
+        string clear2 = BuildClear("Chapter02_Clear", "CHAPTER 2", "YOU HAVE BEEN HERE BEFORE.", "당신은 이전에도 이곳에 있었습니다.", "",
+                                   "Ch2/facility_hall", "CHAPTER 3", "OBSERVATION", "CHAPTER 3 · OBSERVATION");
 
         EditorBuildSettings.scenes = new[]
         {
             new EditorBuildSettingsScene(title, true),
             new EditorBuildSettingsScene(room, true),
             new EditorBuildSettingsScene(clear, true),
+            new EditorBuildSettingsScene(corridor, true),
+            new EditorBuildSettingsScene(clear2, true),
         };
 
         PlayerSettings.productName = "04:04";
@@ -60,7 +67,30 @@ public static class Room404Builder
 
         AssetDatabase.SaveAssets();
         EditorSceneManager.OpenScene(title);
-        Debug.Log("<color=#49e07a>[04:04] 씬 3개 생성 완료! Title 씬에서 ▶ Play 를 눌러보세요.</color>");
+        Debug.Log("<color=#49e07a>[04:04] 씬 5개 생성 완료! Title 씬에서 ▶ Play 를 눌러보세요.</color>");
+    }
+
+    [MenuItem("04:04/Chapter 2 바로 테스트 (씬 열기)", priority = 2)]
+    static void OpenCh2()
+    {
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+        EditorSceneManager.OpenScene($"{SCENES}/Chapter02_Corridor.unity");
+    }
+
+    // 웹(WebGL) 빌드 → 프로젝트 폴더/Builds/Web  (GitHub Pages 에 그대로 올리면 됨)
+    [MenuItem("04:04/웹 빌드 (Builds/Web)", priority = 10)]
+    public static void BuildWeb()
+    {
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;   // 서버 설정 없이도 열리게
+        PlayerSettings.WebGL.decompressionFallback = false;
+        var scenes = new List<string>();
+        foreach (var sc in EditorBuildSettings.scenes) if (sc.enabled) scenes.Add(sc.path);
+        var report = BuildPipeline.BuildPlayer(scenes.ToArray(), "Builds/Web", BuildTarget.WebGL, BuildOptions.None);
+        if (report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded)
+            Debug.Log("<color=#49e07a>[04:04] 웹 빌드 완료! → Builds/Web</color>");
+        else
+            Debug.LogError("[04:04] 웹 빌드 실패: " + report.summary.result);
     }
 
     [MenuItem("04:04/게임 화면 세로(480x854)로 보기 도움말", priority = 20)]
@@ -519,15 +549,17 @@ public static class Room404Builder
     }
 
     // =========================================================
-    //  3) Chapter01_Clear  (결과 화면 → 다음 챕터 → 추후 제작)
+    //  3) ChapterXX_Clear  (결과 화면 → 다음 챕터 / 추후 제작)
     // =========================================================
-    static string BuildClear()
+    static string BuildClear(string sceneName, string chapterLabel, string timeCode, string extra, string nextScene,
+                             string walkSprite, string walkTitle, string walkSubLabel, string soonLabel)
     {
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         Base(out var canvas);
         var cv = canvas.transform;
         var gm = new GameObject("GameManager");
         var cs = gm.AddComponent<ClearScreen>();
+        cs.nextScene = nextScene;
 
         var frame = FR(UI("ClearFrame", cv), 0, 0, FW, FH);
         Img(frame, Spr("ui_white"), Color.black, false);
@@ -536,10 +568,16 @@ public static class Room404Builder
         // 결과
         var clearRt = Stretch(UI("ClearGroup", frame));
         cs.clearGroup = clearRt.gameObject.AddComponent<CanvasGroup>();
-        cs.chapterText = Txt(TL(UI("ChapterText", clearRt), 0, 300, FW, 40), "CHAPTER 1", 24, Dim, TextAnchor.MiddleCenter, true);
+        cs.chapterText = Txt(TL(UI("ChapterText", clearRt), 0, 300, FW, 40), chapterLabel, 24, Dim, TextAnchor.MiddleCenter, true);
         cs.clearText = Txt(TL(UI("ClearText", clearRt), 0, 340, FW, 90), "CLEAR", 72, Cream, TextAnchor.MiddleCenter, true);
-        cs.timeCodeText = Txt(TL(UI("TimeCode", clearRt), 0, 440, FW, 30), "04:04", 24, Red, TextAnchor.MiddleCenter, true);
-        cs.recordText = Txt(TL(UI("Record", clearRt), 0, 490, FW, 24), "", 12, Dim, TextAnchor.MiddleCenter);
+        cs.timeCodeText = Txt(TL(UI("TimeCode", clearRt), 0, 440, FW, 30), timeCode, 24, Red, TextAnchor.MiddleCenter, true);
+        float recY = 490;
+        if (!string.IsNullOrEmpty(extra))
+        {
+            cs.extraText = Txt(TL(UI("Extra", clearRt), 0, 476, FW, 24), extra, 12, Cream, TextAnchor.MiddleCenter);
+            recY = 520;
+        }
+        cs.recordText = Txt(TL(UI("Record", clearRt), 0, recY, FW, 24), "", 12, Dim, TextAnchor.MiddleCenter);
         var nextRt = TL(UI("NextButton", clearRt), 120, 660, 240, 56);
         cs.nextButton = Btn(nextRt, Spr("ui_white"), new Color(1, 1, 1, 0.06f));
         nextRt.gameObject.AddComponent<CanvasGroup>();
@@ -548,12 +586,18 @@ public static class Room404Builder
         // 복도를 걸어감
         var walkRt = Stretch(UI("WalkGroup", frame));
         cs.walkGroup = walkRt.gameObject.AddComponent<CanvasGroup>();
-        cs.corridor = Img(Center(UI("Corridor", walkRt), 0, 0, 600, 860), Spr("corridor_persp"), Color.white, false);
+        cs.corridor = Img(Center(UI("Corridor", walkRt), 0, 0, 600, 860), Spr(walkSprite), Color.white, false);
         Img(Stretch(UI("WalkVignette", walkRt)), Spr("fx_vignette"), Color.white, false);
-        cs.walkTitle = Txt(TL(UI("WalkTitle", walkRt), 0, 640, FW, 40), "CHAPTER 2", 24, Cream, TextAnchor.MiddleCenter, true);
+        cs.walkTitle = Txt(TL(UI("WalkTitle", walkRt), 0, 640, FW, 40), walkTitle, 24, Cream, TextAnchor.MiddleCenter, true);
         cs.walkTitle.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
-        var walkSub = Txt(TL(UI("WalkSub", walkRt), 0, 680, FW, 30), "복도", 24, Dim, TextAnchor.MiddleCenter, true);
+        var walkSub = Txt(TL(UI("WalkSub", walkRt), 0, 680, FW, 30), walkSubLabel, 24, Dim, TextAnchor.MiddleCenter, true);
         walkSub.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
+        if (walkSprite.Contains("facility"))   // 하얀 복도 위에서는 글자를 어둡게
+        {
+            cs.walkTitle.color = Hex("2a2420"); walkSub.color = Hex("5a2a26");
+            cs.walkTitle.GetComponent<Shadow>().effectColor = new Color(1, 1, 1, 0.6f);
+            walkSub.GetComponent<Shadow>().effectColor = new Color(1, 1, 1, 0.6f);
+        }
 
         // 노이즈
         var noiseRt = Stretch(UI("Noise", cv));
@@ -567,7 +611,7 @@ public static class Room404Builder
         var soonRt = FR(UI("ComingSoonGroup", cv), 0, 0, FW, FH);
         Img(soonRt, Spr("ui_white"), Color.black, true);
         cs.soonGroup = soonRt.gameObject.AddComponent<CanvasGroup>();
-        Txt(TL(UI("SoonSmall", soonRt), 0, 300, FW, 24), "CHAPTER 2 · 복도", 12, Dim, TextAnchor.MiddleCenter, true);
+        Txt(TL(UI("SoonSmall", soonRt), 0, 300, FW, 24), soonLabel, 12, Dim, TextAnchor.MiddleCenter, true);
         cs.soonTitle = Txt(TL(UI("SoonTitle", soonRt), 0, 330, FW, 80), "추후 제작", 48, Cream, TextAnchor.MiddleCenter, true);
         cs.soonSub = Txt(TL(UI("SoonSub", soonRt), 0, 420, FW, 60), "다음 챕터는 아직 준비 중입니다.", 24, Dim, TextAnchor.MiddleCenter);
         var backRt = TL(UI("BackButton", soonRt), 120, 620, 240, 56);
@@ -578,6 +622,275 @@ public static class Room404Builder
         var sl = gm.AddComponent<SceneLoader>();
         sl.fade = fade; sl.fadeInOnStart = true; sl.fadeInTime = 0.6f;
 
-        return Save("Chapter01_Clear");
+        return Save(sceneName);
     }
+
+    // =========================================================
+    //  4) Chapter02_Corridor  (THE LOOP — 반복되는 복도)
+    //     복도 입구 → 객실 복도 → 배전함 구역 → 복도 끝
+    // =========================================================
+    static Image Ch2Art(string name, Transform parent, string sprite, float ax, float ay, bool raycast)
+    {
+        var img = Art(name, parent, "Ch2/" + sprite, ax, ay);
+        img.raycastTarget = raycast;
+        return img;
+    }
+
+    static string BuildCorridor()
+    {
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        Base(out var canvas);
+        var cv = canvas.transform;
+        var gm = new GameObject("GameManager");
+
+        // ---------------- CorridorView ----------------
+        var view = FR(UI("CorridorView", cv), 0, 46, FW, 688);
+        Img(view, Spr("ui_white"), Color.black, true);
+        view.gameObject.AddComponent<RectMask2D>();
+        var swipe = view.gameObject.AddComponent<RoomSwipeController>();
+        swipe.wrap = false;
+
+        RectTransform View(string name, string sprite)
+        {
+            var w = TL(UI(name, view), 0, 0, FW, 688);
+            Img(w, Spr("Ch2/" + sprite), Color.white, true);
+            return w;
+        }
+
+        // 화면 1 — 복도 입구
+        var vEnt = View("View_Entrance", "bg_entrance");
+        Hit("Room404Hit", vEnt, 4, 40, 36, 92, "room404");
+        Hit("EvacHit", vEnt, 45, 51, 22, 20, "evac");
+        Hit("LightHit", vEnt, 44, 0, 32, 10, "light");
+        var wallRt = TL(UI("WallHit", vEnt), 73 * PX, 29 * PX, 42 * PX, 68 * PX);
+        Img(wallRt, null, new Color(0, 0, 0, 0), true);
+        var wallGlow = Img(TL(UI("WallUVGlow", wallRt), -10 * PX, -4 * PX, 62 * PX, 76 * PX), Spr("fx_uvglow"), new Color(1, 1, 1, 0), false);
+        var marks = Ch2Art("UVMarks", wallRt, "obj_uv_marks", 0, 0, false);
+        var marksCg = marks.gameObject.AddComponent<CanvasGroup>();
+        marksCg.alpha = 0; marksCg.blocksRaycasts = false; marksCg.interactable = false;
+        var uvMsg = Txt(TL(UI("UVMessage", marks.transform), 4, 166, 160, 16), "왼쪽부터 세어.", 12, new Color(0.8f, 0.62f, 1f), TextAnchor.MiddleLeft, true);
+        var chalkX = Ch2Art("ChalkX", wallRt, "obj_chalk_x", 9, 11, false);
+        chalkX.gameObject.SetActive(false);
+        var wallHold = wallRt.gameObject.AddComponent<HoldReveal>();
+        wallHold.revealGroup = marksCg; wallHold.glow = wallGlow; wallHold.holdTime = 1.5f; wallHold.tapId = "wall";
+        Ch2Art("Chalk", vEnt, "obj_chalk", 70, 126, true).gameObject.AddComponent<InteractableObject>().id = "chalk";
+        Ch2Art("Checklist", vEnt, "obj_checklist", 92, 124, true).gameObject.AddComponent<InteractableObject>().id = "checklist";
+        var cart = Ch2Art("Cart", vEnt, "obj_cart", 64, 104, true);
+        var cartMover = cart.gameObject.AddComponent<SwipeMover>();
+        cartMover.direction = Vector2.left; cartMover.distance = 40 * PX; cartMover.tapId = "cart"; cartMover.sound = "cart";
+
+        // 화면 2 — 객실 복도 (문 세 개, 전부 404)
+        var vDoors = View("View_Doors", "bg_doors");
+        Hit("SignHit", vDoors, 44, 21, 32, 11, "sign");
+        string[] lmr = { "L", "M", "R" };
+        string[] ids = { "door_l", "door_m", "door_r" };
+        float[] dx = { 6, 44, 82 };
+        for (int i = 0; i < 3; i++)
+        {
+            var d = Ch2Art("Door_" + lmr[i], vDoors, "obj_door404", dx[i], 42, true);
+            d.gameObject.AddComponent<InteractableObject>().id = ids[i];
+            var kt = Txt(TL(UI("KnockText_" + lmr[i], d.transform), -32, -44, 32 * PX + 64, 36), "", 24, Cream, TextAnchor.MiddleCenter, true);
+            kt.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
+            kt.gameObject.SetActive(false);
+        }
+
+        // 화면 3 — 배전함 구역
+        var vPow = View("View_Power", "bg_power");
+        Hit("ClockHit", vPow, 92, 22, 22, 22, "clock");
+        Hit("StickerHit", vPow, 8, 50, 16, 14, "sticker");
+        var box = Ch2Art("PowerBox", vPow, "obj_powerbox", 32, 40, true);
+        box.gameObject.AddComponent<InteractableObject>().id = "box";
+        var flap = Ch2Art("PowerFlap", box.transform, "obj_power_flap", 13, 13, true);
+        var flapMover = flap.gameObject.AddComponent<SwipeMover>();
+        flapMover.direction = Vector2.up; flapMover.distance = 26 * PX; flapMover.tapId = "flap"; flapMover.sound = "curtain";
+        // 게이지
+        var gauge = TL(UI("Gauge", vPow), 40 * PX, 27 * PX, 40 * PX, 8 * PX);
+        Img(gauge, Spr("Ch2/ui_gauge"), Color.white, false);
+        var fill = Img(TL(UI("GaugeFill", gauge), 4, 4, 40 * PX - 8, 8 * PX - 8), Spr("ui_white"), Green, false);
+        fill.type = Image.Type.Filled; fill.fillMethod = Image.FillMethod.Horizontal; fill.fillOrigin = 0; fill.fillAmount = 0;
+        var pct = Txt(TL(UI("GaugeText", gauge), -40, -26, 40 * PX + 80, 22), "POWER 0%", 12, Cream, TextAnchor.MiddleCenter, true);
+        pct.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
+        gauge.gameObject.SetActive(false);
+        // 레버 (배전함이 열리면 나타남)
+        var leverHit = TL(UI("LeverHit", vPow), 44 * PX, 62 * PX, 32 * PX, 48 * PX);
+        Img(leverHit, null, new Color(0, 0, 0, 0), true);
+        var leverImg = Ch2Art("Lever", leverHit, "obj_lever_up", 10, 4, false);
+        var hl = leverHit.gameObject.AddComponent<HoldLever>();
+        hl.holdTime = 2f; hl.handle = leverImg.rectTransform; hl.travel = 14 * PX;
+        hl.gaugeRoot = gauge.gameObject; hl.fill = fill; hl.percent = pct; hl.tapId = "lever";
+        leverHit.gameObject.SetActive(false);
+
+        // 화면 4 — 복도 끝 (비상구)
+        var vExit = View("View_Exit", "bg_exit");
+        Ch2Art("ExitDoor", vExit, "obj_exit_closed", 32, 38, true).gameObject.AddComponent<InteractableObject>().id = "exit";
+        Ch2Art("ExitSign", vExit, "obj_exit_sign", 45, 26, true).gameObject.AddComponent<InteractableObject>().id = "sign";
+        Ch2Art("LockLamp", vExit, "obj_lamp_red", 92, 80, true).gameObject.AddComponent<InteractableObject>().id = "lamp";
+        Ch2Art("CCTV", vExit, "obj_cctv_off", 98, 12, true).gameObject.AddComponent<InteractableObject>().id = "cctv";
+
+        swipe.walls = new[] { vEnt, vDoors, vPow, vExit };
+
+        Img(Stretch(UI("DarkOverlay", view)), Spr("ui_white"), new Color(0, 0, 0, 0), false);
+        Img(Stretch(UI("Vignette", view)), Spr("fx_vignette"), Color.white, false);
+        var arrowL = Btn(TL(UI("ArrowLeft", view), 0, 246, 40, 72), null, new Color(0, 0, 0, 0));
+        Img(Center(UI("Icon", arrowL.transform), 0, 0, 21, 39), Spr("icon_arrow_l"), Color.white, false);
+        var arrowR = Btn(TL(UI("ArrowRight", view), 440, 246, 40, 72), null, new Color(0, 0, 0, 0));
+        Img(Center(UI("Icon", arrowR.transform), 0, 0, 21, 39), Spr("icon_arrow_r"), Color.white, false);
+        var find = Txt(TL(UI("FindExit", view), 0, 300, FW, 60), "FIND THE EXIT", 48, Green, TextAnchor.MiddleCenter, true);
+        find.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
+        find.gameObject.SetActive(false);
+
+        // ---------------- TopBar ----------------
+        var top = FR(UI("TopBar", cv), 0, 0, FW, 46);
+        Img(top, Spr("ui_white"), Bar, true);
+        Img(TL(UI("Line", top), 0, 44, FW, 2), Spr("ui_white"), Hex("2a2420"), false);
+        var gear = Btn(TL(UI("GearButton", top), 4, 1, 44, 44), null, new Color(0, 0, 0, 0));
+        Img(Center(UI("GearIcon", gear.transform), 0, 0, 24, 24), Spr("icon_gear"), Color.white, false);
+        Txt(TL(UI("RoomTitle", top), 0, 4, FW, 26), "CORRIDOR", 24, Cream, TextAnchor.MiddleCenter, true);
+        Txt(TL(UI("WallDots", top), 0, 30, FW, 14), "■ □ □ □", 12, Dim, TextAnchor.MiddleCenter);
+        var noteBtn = Btn(TL(UI("NoteButton", top), 432, 1, 44, 44), null, new Color(0, 0, 0, 0));
+        var noteIcon = Img(Center(UI("NoteIcon", noteBtn.transform), 0, 0, 24, 24), Spr("icon_note"), Color.white, false);
+        var newDot = Img(TL(UI("NewDot", noteBtn.transform), 30, 6, 8, 8), Spr("ui_white"), Red, false);
+
+        // ---------------- InventoryPanel (아이템 3칸 + 힌트) ----------------
+        var invRt = FR(UI("InventoryPanel", cv), 0, 734, FW, 120);
+        Img(invRt, Spr("ui_white"), Bar, true);
+        Img(TL(UI("Line", invRt), 0, 0, FW, 2), Spr("ui_white"), Hex("2a2420"), false);
+        var invLabel = Txt(TL(UI("ItemLabel", invRt), 44, 8, 400, 16), "ITEM", 12, Dim, TextAnchor.MiddleLeft, true);
+        var slots = new Button[3];
+        var icons = new Image[3];
+        for (int i = 0; i < 3; i++)
+        {
+            var srt = TL(UI("Slot" + (i + 1), invRt), 44 + i * 104, 30, 80, 80);
+            slots[i] = Btn(srt, Spr("ui_slot"), Color.white);
+            slots[i].transition = Selectable.Transition.None;
+            icons[i] = Img(Center(UI("Icon", srt), 0, 0, 64, 64), Spr("icon_uv"), Color.white, false);
+            icons[i].gameObject.SetActive(false);
+        }
+        var hintRt = TL(UI("HintButton", invRt), 44 + 3 * 104, 30, 80, 80);
+        var hintBtn = Btn(hintRt, Spr("ui_slot"), Hex("8a8170"));
+        Img(Center(UI("HintIcon", hintRt), 0, -6, 48, 48), Spr("Ch2/icon_hint"), Color.white, false);
+        Txt(TL(UI("HintLabel", hintRt), 0, 60, 80, 16), "HINT", 12, Dim, TextAnchor.MiddleCenter, true);
+        var inv = gm.AddComponent<InventoryManager>();
+        inv.slots = slots; inv.icons = icons; inv.label = invLabel;
+        inv.slotSprite = Spr("ui_slot"); inv.slotSelectedSprite = Spr("ui_slot_sel");
+        inv.keyIcon = Spr("icon_key"); inv.uvIcon = Spr("icon_uv");
+        inv.extraIcons = new List<Sprite> { Spr("Ch2/icon_chalk") };
+
+        // ---------------- ZoomPanel ----------------
+        var zoomRt = Stretch(UI("ZoomPanel", cv));
+        Img(zoomRt, Spr("ui_white"), new Color(0, 0, 0, 0.88f), true);
+        var zoomCatcher = zoomRt.gameObject.AddComponent<TapCatcher>();
+        var zoomImg = Img(Center(UI("ZoomImage", zoomRt), 0, 70, 300, 300), Spr("zoom_paper"), Color.white, false);
+        var paper = Txt(Center(UI("PaperText", zoomImg.transform), 0, 0, 280, 200), "", 24, Hex("2a2420"), TextAnchor.MiddleCenter, true);
+        var zoom = gm.AddComponent<ZoomView>();
+        zoom.panel = zoomRt.gameObject; zoom.image = zoomImg; zoom.paperText = paper; zoom.catcher = zoomCatcher;
+
+        // ---------------- KeypadPanel (배전함 관리 코드 3자리) ----------------
+        var kpRt = Stretch(UI("KeypadPanel", cv));
+        Img(kpRt, Spr("ui_white"), new Color(0, 0, 0, 0.82f), true);
+        var kpCatcher = kpRt.gameObject.AddComponent<TapCatcher>();
+        var body = Center(UI("KeypadBody", kpRt), 0, 30, 320, 480);
+        Img(body, Spr("ui_keypad"), Color.white, true);
+        Txt(TL(UI("KeypadLabel", body), 0, 14, 320, 16), "MAINTENANCE LOCK", 12, Dim, TextAnchor.MiddleCenter, true);
+        Img(TL(UI("DisplayBg", body), 28, 36, 264, 64), Spr("ui_white"), Hex("0c1310"), false);
+        var display = Txt(TL(UI("Display", body), 28, 36, 264, 64), "___", 48, Green, TextAnchor.MiddleCenter, true);
+        var digits = new Button[10];
+        string[] order = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "<", "0", "" };
+        Button back = null;
+        for (int i = 0; i < 12; i++)
+        {
+            if (order[i] == "") continue;
+            int col = i % 3, row = i / 3;
+            var brt = TL(UI("Key_" + (order[i] == "<" ? "Back" : order[i]), body), 40 + col * 88, 116 + row * 64, 64, 52);
+            var b = Btn(brt, Spr("ui_keybtn"), Color.white);
+            Txt(Stretch(UI("Label", brt)), order[i] == "<" ? "C" : order[i], 24, Cream, TextAnchor.MiddleCenter, true);
+            if (order[i] == "<") back = b; else digits[int.Parse(order[i])] = b;
+        }
+        var enterRt = TL(UI("Key_Enter", body), 40, 376, 240, 56);
+        var enter = Btn(enterRt, Spr("ui_keybtn"), Hex("9fd9b0"));
+        Txt(Stretch(UI("Label", enterRt)), "ENTER", 24, Cream, TextAnchor.MiddleCenter, true);
+        var closeRt = Center(UI("Key_Close", kpRt), 0, -250, 160, 44);
+        var close = Btn(closeRt, Spr("ui_white"), Hex("2a2420"));
+        Txt(Stretch(UI("Label", closeRt)), "닫기", 24, Cream, TextAnchor.MiddleCenter, true);
+        var keypad = gm.AddComponent<KeypadController>();
+        keypad.panel = kpRt.gameObject; keypad.body = body; keypad.display = display;
+        keypad.digits = digits; keypad.backButton = back; keypad.enterButton = enter; keypad.closeButton = close;
+        keypad.dimCatcher = kpCatcher;
+        keypad.answer = "312"; keypad.trap = "404"; keypad.length = 3; keypad.trapFlash = "404?";
+
+        // ---------------- CluePanel ----------------
+        var clueRt = Stretch(UI("CluePanel", cv));
+        Img(clueRt, Spr("ui_white"), new Color(0, 0, 0, 0.8f), true);
+        var clueCatcher = clueRt.gameObject.AddComponent<TapCatcher>();
+        var book = Center(UI("Notebook", clueRt), 0, 30, 440, 680);
+        Img(book, Spr("ui_white"), Hex("cfc6ad"), true);
+        Img(TL(UI("BookEdge", book), 0, 0, 440, 56), Spr("ui_white"), Hex("5a2a26"), false);
+        Txt(TL(UI("BookTitle", book), 0, 0, 440, 56), "단서 노트", 24, Hex("f0e6d0"), TextAnchor.MiddleCenter, true);
+        var clueText = Txt(TL(UI("ClueList", book), 20, 72, 400, 596), "", 24, Hex("2a2420"), TextAnchor.UpperLeft);
+        clueText.lineSpacing = 1.0f;
+        var clueClose = TextButton("ClueClose", clueRt, "닫기", 24, Hex("2a2420"), Cream);
+        Center((RectTransform)clueClose.transform, 0, -340, 160, 40);
+        var notes = gm.AddComponent<ClueNotebook>();
+        notes.panel = clueRt.gameObject; notes.listText = clueText; notes.openButton = noteBtn; notes.closeButton = clueClose;
+        notes.dimCatcher = clueCatcher; notes.icon = noteIcon.rectTransform; notes.newDot = newDot;
+
+        // ---------------- CutscenePanel (시설 복도 + CCTV) ----------------
+        var cutRt = FR(UI("CutscenePanel", cv), 0, 0, FW, FH);
+        Img(cutRt, Spr("ui_white"), Color.black, true);
+        cutRt.gameObject.AddComponent<RectMask2D>();
+        cutRt.gameObject.AddComponent<CanvasGroup>();
+        Img(Center(UI("FacilityHall", cutRt), 0, 0, 600, 860), Spr("Ch2/facility_hall"), Color.white, false);
+        Img(Center(UI("Monitor", cutRt), 0, 60, 112 * PX, 80 * PX), Spr("Ch2/cctv_clones"), Color.white, false);
+        Img(Stretch(UI("CutVignette", cutRt)), Spr("fx_vignette"), new Color(1, 1, 1, 0.6f), false);
+        Img(Stretch(UI("Flash", cutRt)), Spr("ui_white"), new Color(1, 1, 1, 0), false);
+        cutRt.gameObject.SetActive(false);
+
+        // ---------------- DialoguePanel ----------------
+        var blockerRt = Stretch(UI("DialogueBlocker", cv));
+        Img(blockerRt, null, new Color(0, 0, 0, 0), true);
+        blockerRt.gameObject.AddComponent<TapCatcher>();
+        var dlgRt = FR(UI("DialoguePanel", cv), 16, 586, 448, 136);
+        var dlgCg = dlgRt.gameObject.AddComponent<CanvasGroup>();
+        dlgCg.blocksRaycasts = false;
+        Img(dlgRt, Spr("ui_white"), Hex("6b6152"), false);
+        Img(TL(UI("Inner", dlgRt), 2, 2, 444, 132), Spr("ui_white"), new Color(0.06f, 0.05f, 0.045f, 0.94f), false);
+        var speaker = Txt(TL(UI("Speaker", dlgRt), 18, 10, 300, 16), "", 12, Hex("e3c27a"), TextAnchor.MiddleLeft, true);
+        var bodyT = Txt(TL(UI("Body", dlgRt), 18, 32, 412, 96), "", 24, Cream, TextAnchor.UpperLeft);
+        var next = Txt(TL(UI("NextMark", dlgRt), 408, 108, 24, 20), "▼", 12, Cream, TextAnchor.MiddleCenter);
+        var dlg = gm.AddComponent<DialogueManager>();
+        dlg.panel = dlgCg; dlg.speakerText = speaker; dlg.bodyText = bodyT; dlg.nextMark = next; dlg.blocker = blockerRt.gameObject;
+
+        // ---------------- 노이즈 / 입력 차단 / 시작 연출 / 페이드 ----------------
+        var noiseRt = Stretch(UI("Noise", cv));
+        var noise = noiseRt.gameObject.AddComponent<RawImage>();
+        noise.texture = AssetDatabase.LoadAssetAtPath<Texture2D>($"{ART}/fx_noise.png");
+        noise.color = new Color(1, 1, 1, 0); noise.raycastTarget = false;
+        var glitch = gm.AddComponent<GlitchEffect>();
+        glitch.noise = noise;
+        keypad.glitch = glitch;
+
+        var blockRt = Stretch(UI("InputBlocker", cv));
+        Img(blockRt, null, new Color(0, 0, 0, 0), true);
+        blockRt.gameObject.SetActive(false);
+
+        var introRt = Stretch(UI("IntroPanel", cv));
+        Img(introRt, Spr("ui_white"), Color.black, true);
+        introRt.gameObject.AddComponent<CanvasGroup>();
+        Txt(Center(UI("IntroText", introRt), 0, 20, FW, 70), "CHAPTER 2", 48, Cream, TextAnchor.MiddleCenter, true);
+        Txt(Center(UI("IntroSub", introRt), 0, -36, FW, 40), "THE LOOP", 24, Red, TextAnchor.MiddleCenter, true);
+
+        var fade = FadePanel(cv);
+        var sl = gm.AddComponent<SceneLoader>();
+        sl.fade = fade; sl.fadeInOnStart = true; sl.fadeInTime = 0.3f;
+
+        // ---------------- 퍼즐 관리자 ----------------
+        var mgr = gm.AddComponent<Chapter02Manager>();
+        string[] needed = { "Ch2/obj_powerbox_open", "Ch2/obj_lever_down", "Ch2/obj_lamp_green", "Ch2/obj_cctv_on", "Ch2/obj_cctv_off",
+                            "Ch2/obj_exit_open", "Ch2/zoom_evac_exit", "zoom_paper" };
+        mgr.sprites = new List<Sprite>();
+        foreach (var n in needed) mgr.sprites.Add(Spr(n));
+
+        return Save("Chapter02_Corridor");
+    }
+
 }

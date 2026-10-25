@@ -28,7 +28,7 @@ public class CurtainController : MonoBehaviour, IBeginDragHandler, IDragHandler,
     {
         if (isOpen) return;
         if ((e.pressPosition - e.position).magnitude > Screen.height * 0.03f) return;
-        if (Chapter01Manager.I != null) Chapter01Manager.I.OnTap("curtain");
+        TapRouter.Send("curtain");
     }
 
     public void OnBeginDrag(PointerEventData e)

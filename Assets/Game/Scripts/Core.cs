@@ -10,6 +10,13 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+// 오브젝트를 탭하면 지금 챕터의 관리자(Chapter01Manager / Chapter02Manager)에게 id 를 전달
+public static class TapRouter
+{
+    public static Action<string> Handler;
+    public static void Send(string id) { Handler?.Invoke(id); }
+}
+
 public static class GameState
 {
     public static float startTime;

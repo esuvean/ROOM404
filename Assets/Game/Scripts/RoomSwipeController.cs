@@ -13,6 +13,8 @@ public class RoomSwipeController : MonoBehaviour, IBeginDragHandler, IDragHandle
     public float slideTime = 0.3f;
     [Range(0.03f, 0.3f)] public float minSwipe = 0.08f; // 화면 너비 대비 최소 이동 거리
     public bool locked;
+    public bool wrap = true;          // false 면 끝에서 멈춤 (복도)
+    public Action<int> onBlocked;     // 끝에서 더 가려고 할 때 (방향)
 
     public Action<int> onWallChanged;
     bool sliding;
@@ -41,7 +43,22 @@ public class RoomSwipeController : MonoBehaviour, IBeginDragHandler, IDragHandle
     public void Go(int dir)
     {
         if (locked || sliding) return;
+        if (!wrap && (current + dir < 0 || current + dir >= walls.Length)) { onBlocked?.Invoke(dir); return; }
         StartCoroutine(Slide(dir));
+    }
+
+    // 연출 없이 바로 특정 화면으로 (복도 되돌아오기)
+    public void JumpTo(int index)
+    {
+        StopAllCoroutines();
+        sliding = false;
+        for (int i = 0; i < walls.Length; i++)
+        {
+            walls[i].gameObject.SetActive(i == index);
+            walls[i].anchoredPosition = Vector2.zero;
+        }
+        current = index;
+        onWallChanged?.Invoke(current);
     }
 
     IEnumerator Slide(int dir)

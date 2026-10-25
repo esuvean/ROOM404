@@ -46,6 +46,7 @@ public class Chapter01Manager : MonoBehaviour
     void Awake()
     {
         I = this;
+        TapRouter.Handler = OnTap;
         var canvas = FindFirstObjectByType<Canvas>();
         foreach (var t in canvas.GetComponentsInChildren<Transform>(true)) map[t.name] = t;
 

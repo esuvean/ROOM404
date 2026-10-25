@@ -13,6 +13,7 @@ public class InventoryManager : MonoBehaviour
     public Text label;
     public Sprite slotSprite, slotSelectedSprite;
     public Sprite keyIcon, uvIcon;
+    public List<Sprite> extraIcons = new List<Sprite>();   // icon_chalk 같은 추가 아이콘
 
     readonly List<string> items = new List<string>();
     public string Selected { get; private set; }
@@ -56,13 +57,21 @@ public class InventoryManager : MonoBehaviour
         Refresh();
     }
 
+    Sprite IconFor(string id)
+    {
+        if (id == "KEY") return keyIcon;
+        if (id == "UV") return uvIcon;
+        var s = extraIcons.Find(x => x != null && x.name == "icon_" + id.ToLower());
+        return s != null ? s : uvIcon;
+    }
+
     void Refresh()
     {
         for (int i = 0; i < slots.Length; i++)
         {
             bool has = i < items.Count;
             icons[i].gameObject.SetActive(has);
-            if (has) icons[i].sprite = items[i] == "KEY" ? keyIcon : uvIcon;
+            if (has) icons[i].sprite = IconFor(items[i]);
             var img = slots[i].GetComponent<Image>();
             img.sprite = has && items[i] == Selected ? slotSelectedSprite : slotSprite;
         }
