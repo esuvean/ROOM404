@@ -77,8 +77,8 @@ public static class Room404Builder
         EditorSceneManager.OpenScene($"{SCENES}/Chapter02_Corridor.unity");
     }
 
-    // 웹(WebGL) 빌드 → 프로젝트 폴더/Builds/Web  (GitHub Pages 에 그대로 올리면 됨)
-    [MenuItem("04:04/웹 빌드 (Builds/Web)", priority = 10)]
+    // 웹(WebGL) 빌드 → 프로젝트 폴더/docs  (GitHub Pages 가 이 docs 폴더를 그대로 보여줌)
+    [MenuItem("04:04/웹 빌드 (docs 폴더)", priority = 10)]
     public static void BuildWeb()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
@@ -86,11 +86,41 @@ public static class Room404Builder
         PlayerSettings.WebGL.decompressionFallback = false;
         var scenes = new List<string>();
         foreach (var sc in EditorBuildSettings.scenes) if (sc.enabled) scenes.Add(sc.path);
-        var report = BuildPipeline.BuildPlayer(scenes.ToArray(), "Builds/Web", BuildTarget.WebGL, BuildOptions.None);
+        var report = BuildPipeline.BuildPlayer(scenes.ToArray(), "docs", BuildTarget.WebGL, BuildOptions.None);
         if (report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded)
-            Debug.Log("<color=#49e07a>[04:04] 웹 빌드 완료! → Builds/Web</color>");
+        {
+            PatchWebIndex("docs/index.html");
+            System.IO.File.WriteAllText("docs/.nojekyll", "");
+            Debug.Log("<color=#49e07a>[04:04] 웹 빌드 완료! → docs 폴더 (GitHub 에 올리면 사이트에 반영)</color>");
+        }
         else
             Debug.LogError("[04:04] 웹 빌드 실패: " + report.summary.result);
+    }
+
+    // 아이폰 Safari 는 가끔 효과음 하나를 못 읽고 "EncodingError: Decoding failed" 팝업을 띄움.
+    // 그 소리 하나만 조용히 건너뛰고 게임은 계속 되도록 index.html 에 처리기를 넣는다.
+    static void PatchWebIndex(string path)
+    {
+        if (!System.IO.File.Exists(path)) return;
+        string html = System.IO.File.ReadAllText(path);
+        if (html.Contains("ROOM404_AUDIO_FIX")) return;
+        const string marker = "showBanner: unityShowBanner,";
+        const string handler = marker + @"
+        // ROOM404_AUDIO_FIX: 소리 해독 실패는 팝업 없이 무시
+        errorHandler: function(err, url, line) {
+          var m = String(err);
+          if (m.indexOf('EncodingError') >= 0 || m.indexOf('Decoding failed') >= 0 || m.indexOf('decodeAudioData') >= 0) {
+            console.warn('[04:04] 오디오 해독 실패(무시함): ' + m);
+            return true;
+          }
+          return false;
+        },";
+        if (!html.Contains(marker)) { Debug.LogWarning("[04:04] index.html 패치 위치를 못 찾음"); return; }
+        html = html.Replace(marker, handler);
+        // 탭 제목도 게임 이름으로
+        html = html.Replace("<title>Unity Web Player | 0404</title>", "<title>04:04</title>");
+        html = html.Replace("<title>Unity Web Player | 04:04</title>", "<title>04:04</title>");
+        System.IO.File.WriteAllText(path, html);
     }
 
     [MenuItem("04:04/게임 화면 세로(480x854)로 보기 도움말", priority = 20)]

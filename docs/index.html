@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | 0404</title>
+    <title>04:04</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
   </head>
@@ -63,6 +63,15 @@
         productName: "0404",
         productVersion: "0.1.0",
         showBanner: unityShowBanner,
+        // ROOM404_AUDIO_FIX: 소리 해독 실패는 팝업 없이 무시
+        errorHandler: function(err, url, line) {
+          var m = String(err);
+          if (m.indexOf('EncodingError') >= 0 || m.indexOf('Decoding failed') >= 0 || m.indexOf('decodeAudioData') >= 0) {
+            console.warn('[04:04] 오디오 해독 실패(무시함): ' + m);
+            return true;
+          }
+          return false;
+        },
         // errorHandler: function(err, url, line) {
         //    alert("error " + err + " occurred at line " + line);
         //    // Return 'true' if you handled this error and don't want Unity
