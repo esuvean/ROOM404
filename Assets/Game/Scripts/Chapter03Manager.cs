@@ -7,7 +7,7 @@
 //   연구실 메모 "비밀번호는 내 생일" → 가운을 옆으로 스와이프 → 가족사진 APR. 14
 //   → PC 로그인 0414 (0404 는 함정) → 메일 "출입 카드는 본인 파일 서랍에" + 보관함 잠금 해제
 //   → UV 손전등으로 보관함을 홀드 → 404-07 서랍에만 손자국 → 출입 카드
-//   → 카드 리더기 → 지문 스캐너 2초 홀드 → "WELCOME BACK, OBSERVER 404-07"
+//   → 카드 리더기에 카드 긁기 미니게임 (너무 빠르거나 느리면 실패) → 지문 스캐너 2초 홀드 → "WELCOME BACK, OBSERVER 404-07"
 //   → 관찰실: 모니터 속 ROOM 404 의 '나' 에게 전화를 건다 (Chapter 1 의 그 전화)
 //   → CAM 00 에 비친 건 관찰실의 내 뒷모습 → "이번에는 얼마나 걸렸어?" → CHAPTER 3 CLEAR
 // =============================================================
@@ -33,6 +33,8 @@ public class Chapter03Manager : MonoBehaviour
     HoldReveal cabinetUV;
     HoldLever scanner;
     SwipeMover coat;
+    CardSwipe swipeGame;
+    int swipeFails;
 
     readonly Dictionary<string, Transform> map = new Dictionary<string, Transform>();
 
@@ -66,6 +68,9 @@ public class Chapter03Manager : MonoBehaviour
         cabinetUV = Get<HoldReveal>("CabinetHit");
         scanner = Get<HoldLever>("ScannerHit");
         coat = Get<SwipeMover>("Coat");
+        swipeGame = Get<CardSwipe>("SwipeCard");
+        swipeGame.onSuccess = () => Run(OnCardAccepted());
+        swipeGame.onFail = OnSwipeFail;
 
         room.onWallChanged = OnWallChanged;
         room.onBlocked = d => Say(d < 0 ? "뒤쪽은 방금 들어온 비상구뿐이다." : "더 갈 곳이 없다. …관찰실 문뿐이다.");
@@ -198,7 +203,7 @@ public class Chapter03Manager : MonoBehaviour
                 notes.Add("log", "출입 기록표 — 404-07 STAGE 3 통과 / 404-09 STAGE 3 진행 중");
                 Run(zoom.Show(S("zoom_note"),
                     "B4 관찰동 출입 기록\n\n404-07  STAGE 3  통과\n404-08  STAGE 1  중단\n404-09  STAGE 1  " + Rec("Chapter01_Room404") +
-                    "\n404-09  STAGE 2  " + Rec("Chapter02_Corridor") + "\n404-09  STAGE 3  진행 중",
+                    "\n404-09  STAGE 2  " + Rec("Chapter02_Corridor") + "\n404-09  STAGE 3  진행중",
                     "벽에 걸린 출입 기록표다.",
                     "나|404-09… STAGE 1, STAGE 2…",
                     GameState.records.ContainsKey("Chapter01_Room404")
@@ -299,7 +304,7 @@ public class Chapter03Manager : MonoBehaviour
 
             case "reader":
                 if (cardOk) { Say("카드는 이미 확인되었다."); break; }
-                if (inv.IsSelected("CARD")) { Run(OnCardAccepted()); break; }
+                if (inv.IsSelected("CARD")) { inv.Deselect(); swipeGame.Open(); break; }
                 if (inv.Selected != null) { Say("여기엔 " + inv.Selected + "를 쓸 수 없을 것 같다."); break; }
                 Say(inv.Has("CARD") ? "출입 카드 리더기다. …아이템 칸에서 카드를 골라서 대 보자." : "출입 카드 리더기다. 카드가 필요하다.");
                 break;
@@ -477,14 +482,20 @@ public class Chapter03Manager : MonoBehaviour
     }
 
     // ---------------- 관찰실 문 ----------------
+    void OnSwipeFail(string why)
+    {
+        swipeFails++;
+        if (swipeFails == 3) Say("나|…너무 세게도, 너무 살살도 말고. 일정하게.");
+        else if (swipeFails == 6) Say("나|하나, 둘… 정도의 속도로 끝까지 긁어 보자.");
+        else if (why == "short") Say("끝까지 긁어야 읽히는 것 같다.");
+    }
+
     IEnumerator OnCardAccepted()
     {
         busy = true;
         cardOk = true;
         inv.Deselect();
-        SoundManager.Play("beep", 1f);
         yield return new WaitForSeconds(0.2f);
-        SoundManager.Play("success", 0.8f);
         Get<Image>("ReaderLamp").sprite = S("obj_lamp_green");
         GO("ScanGlow").SetActive(true);
         StartCoroutine(UIFx.Punch(map["ScanGlow"], 0.2f, 0.3f));
@@ -710,7 +721,7 @@ public class Chapter03Manager : MonoBehaviour
     {
         new[] { "", "연구실 벽의 가운 뒤에 무언가 걸려 있다. 가운을 옆으로 밀어 보자.", "사진 아래 날짜 APR. 14 → PC 비밀번호는 0414." },
         new[] { "PC 메일: 출입 카드는 '본인 파일' 서랍에 있다.", "UV 손전등을 선택하고, 보관함을 길게 비춰 보자.", "손자국이 잔뜩 묻은 404-07 서랍을 열자." },
-        new[] { "관찰실 문 옆의 장치를 살펴보자.", "아이템 칸에서 출입 카드를 선택하자.", "카드를 선택한 채로 카드 리더기를 탭하자." },
+        new[] { "아이템 칸에서 출입 카드를 선택하고 카드 리더기를 탭하자.", "카드를 왼쪽에서 오른쪽 끝까지 긁어야 한다. 너무 빠르지도 느리지도 않게.", "약 1초 동안 일정한 속도로 끝까지 밀자." },
         new[] { "지문 스캐너에 불이 들어왔다.", "스캐너를 꾹 누르고 있어 보자.", "스캐너를 2초 동안 누르고 있으면 된다." },
         new[] { "관찰실 문이 열렸다.", "관찰실 문을 탭하자.", "관찰실 문을 탭하자." },
     };

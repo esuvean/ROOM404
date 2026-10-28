@@ -20,6 +20,18 @@ public class ZoomView : MonoBehaviour
         catcher.onTap += () => tapped = true;
     }
 
+    // 종이 위 글씨가 줄바꿈되거나 넘치지 않도록, 한 줄이 칸에 들어갈 때까지 글자 크기를 줄임
+    static readonly int[] Sizes = { 24, 22, 20, 18, 16, 14, 12 };
+    static void FitText(Text t)
+    {
+        Vector2 box = t.rectTransform.sizeDelta;
+        foreach (int size in Sizes)
+        {
+            t.fontSize = size;
+            if (t.preferredWidth <= box.x - 4f && t.preferredHeight <= box.y + 8f) return;
+        }
+    }
+
     // lines 가 있으면 대사를 다 넘긴 뒤 닫히고, 없으면 한 번 탭하면 닫힘
     public IEnumerator Show(Sprite s, string paper, params string[] lines)
     {
@@ -33,6 +45,7 @@ public class ZoomView : MonoBehaviour
         {
             paperText.text = paper;
             paperText.rectTransform.sizeDelta = image.rectTransform.sizeDelta - new Vector2(32, 24);
+            FitText(paperText);
         }
         SoundManager.Play("tap", 0.7f);
         image.transform.localScale = Vector3.one * 0.92f;

@@ -7,8 +7,9 @@
 //   카트 스와이프 → 분필·점검표 → (분필로 벽에 X)
 //   → 비상구를 열려고 하면 복도 입구로 되돌아옴 (X 는 그대로!)
 //   → UV 손전등으로 X 벽을 홀드하면 수많은 옛 표시 + "왼쪽부터 세어."
-//   → 세 문 노크 3 · 1 · 2 → 배전함 덮개 위로 스와이프 → 코드 312
-//   → 레버 2초 홀드 → 전원 복구 / SUBJECT 404 DETECTED
+//   → 세 문 노크 3 · 1 · 2 → 가운데 문틈으로 빨간 전선이 밀려 나옴 (아이템 WIRE)
+//   → 배전함 덮개 위로 스와이프 → 코드 312
+//   → 배선 연결 미니게임 (끊어진 빨간 선은 WIRE 로 잇기) → 레버 2초 홀드 → 전원 복구 / SUBJECT 404 DETECTED
 //   → 비상구 → 하얀 시설 복도 → CCTV 속 여러 명의 나 → CHAPTER 2 CLEAR
 // =============================================================
 using System.Collections;
@@ -33,6 +34,7 @@ public class Chapter02Manager : MonoBehaviour
     HoldReveal wallUV;
     HoldLever lever;
     SwipeMover cart, flap;
+    WiringPanel wiring;
 
     readonly Dictionary<string, Transform> map = new Dictionary<string, Transform>();
 
@@ -40,6 +42,8 @@ public class Chapter02Manager : MonoBehaviour
     bool busy;
     bool cartMoved, chalkTaken, xDrawn, uvRevealed;
     bool flapOpen, boxUnlocked, powerOn, whisperDone;
+    bool wireDropped, wireTaken, wiringDone;
+    int needWireCount;
     readonly bool[] knocked = new bool[3];
     int loops, exitTaps, cartTaps, flapTaps, wallTaps, leverTaps, doorTaps404, uvShortTaps, trapCount;
 
@@ -70,6 +74,11 @@ public class Chapter02Manager : MonoBehaviour
         lever = Get<HoldLever>("LeverHit");
         cart = Get<SwipeMover>("Cart");
         flap = Get<SwipeMover>("PowerFlap");
+        wiring = GetComponent<WiringPanel>();
+        wiring.wireSelected = () => inv.IsSelected("WIRE");
+        wiring.onNeedWire = OnNeedWire;
+        wiring.onRepaired = () => { inv.Remove("WIRE"); notes.Add("repair", "배전함 — 끊어진 빨간 선을 가져온 전선으로 이었다."); Say("나|됐다. 빨간 선은 이었어."); };
+        wiring.onComplete = () => StartCoroutine(OnWiringDone());
 
         room.onWallChanged = OnWallChanged;
         room.onBlocked = d => Say(d < 0 ? "나|뒤쪽은 막혀 있다. …ROOM 404 뿐이야." : "더 갈 곳이 없다.");
@@ -79,7 +88,7 @@ public class Chapter02Manager : MonoBehaviour
         wallUV.onRevealed = () => StartCoroutine(OnUVRevealed());
         keypad.onUnlocked = OnBoxUnlocked;
         keypad.onTrap = OnKeypadTrap;
-        lever.canHold = () => boxUnlocked && !powerOn;
+        lever.canHold = () => boxUnlocked && wiringDone && !powerOn;
         lever.onDone = () => StartCoroutine(PowerOn());
         lever.onRelease = () => Say("손을 떼자 레버가 다시 튕겨 올라갔다.");
 
@@ -236,6 +245,16 @@ public class Chapter02Manager : MonoBehaviour
                 Say("EXIT → 화살표가 복도 끝을 가리킨다.");
                 break;
 
+            case "wire":
+                if (wireTaken || !wireDropped) break;
+                wireTaken = true;
+                GO("WireDrop").SetActive(false);
+                inv.Add("WIRE");
+                SoundManager.Play("pickup");
+                notes.Add("wire", "가운데 문틈에서 밀려 나온 빨간 전선 한 가닥 (WIRE).");
+                Run(dlg.Sequence("빨간 전선 한 가닥을 주웠다.", "나|…안에 있는 누군가가 일부러 내보낸 거야?"));
+                break;
+
             // ---------- 화면 3 : 배전함 ----------
             case "flap":
                 flapTaps++;
@@ -247,6 +266,7 @@ public class Chapter02Manager : MonoBehaviour
             case "box":
                 if (!flapOpen) { Say("배전함 앞에 먼지 덮개가 내려와 있다."); break; }
                 if (!boxUnlocked) { keypad.Open(); break; }
+                if (!wiringDone) { wiring.Open(); break; }
                 if (!powerOn) Say("안에 큰 레버가 있다.");
                 else Say("배전함에 전원이 들어와 있다.");
                 break;
@@ -406,7 +426,25 @@ public class Chapter02Manager : MonoBehaviour
         {
             notes.Add("knock", "노크 — 왼쪽 문 3번 · 가운데 문 1번 · 오른쪽 문 2번");
             yield return new WaitForSeconds(0.1f);
-            Say("나|문마다 대답하는 횟수가 달라. …뭔가 숫자 같은데.");
+            if (!wireDropped)
+            {
+                busy = true;
+                yield return new WaitForSeconds(0.6f);
+                SoundManager.Play("cart", 0.5f);
+                wireDropped = true;
+                var w = GO("WireDrop");
+                w.SetActive(true);
+                var wr = (RectTransform)w.transform;
+                Vector2 home = wr.anchoredPosition;
+                wr.anchoredPosition = home + new Vector2(0, 24);
+                StartCoroutine(UIFx.Move(wr, home, 0.5f));
+                yield return dlg.Sequence(
+                    "나|문마다 대답하는 횟수가 달라. …뭔가 숫자 같은데.",
+                    "…스르륵.",
+                    "가운데 문 아래 틈으로 무언가가 밀려 나왔다.");
+                busy = false;
+            }
+            else Say("나|문마다 대답하는 횟수가 달라. …뭔가 숫자 같은데.");
         }
     }
 
@@ -436,9 +474,31 @@ public class Chapter02Manager : MonoBehaviour
         idle = 0f;
         SoundManager.Play("unlock");
         Get<Image>("PowerBox").sprite = S("obj_powerbox_open");
+        notes.Add("box_open", "배전함 — 312 로 열림. 안쪽 배선이 뽑혀 있다. 같은 색끼리 다시 이어야 한다.");
+        Run(BoxOpened());
+    }
+
+    IEnumerator BoxOpened()
+    {
+        yield return dlg.Sequence("철컥— 배전함이 열렸다.", "그런데 안쪽 전선이 전부 뽑혀 있다.", "나|레버를 당기기 전에… 이것부터 이어야겠어.");
+        wiring.Open();
+    }
+
+    void OnNeedWire()
+    {
+        needWireCount++;
+        if (inv.Has("WIRE")) Say("빨간 선이 끊어져 있다. …아이템 칸에서 주운 전선을 고르고 끊어진 곳을 탭하자.");
+        else if (wireDropped) Say("빨간 선이 끊어져 있다. 가운데 문 아래에 떨어진 전선을 쓰면 될 것 같은데.");
+        else Say(needWireCount == 1 ? "빨간 선이 끊어져 있다. 이을 전선이 필요하다." : "빨간 선이 끊어져 있다. …어딘가에 전선이 없을까?");
+    }
+
+    IEnumerator OnWiringDone()
+    {
+        wiringDone = true;
+        idle = 0f;
         GO("LeverHit").SetActive(true);
-        notes.Add("box_open", "배전함 — 312 로 열림. 안에 비상 전원 레버. (HOLD TO RESTORE POWER)");
-        Run(dlg.Sequence("철컥— 배전함이 열렸다.", "안에 큰 레버가 있다. 옆에 작은 글씨: HOLD TO RESTORE POWER"));
+        notes.Add("wired", "배선 완료 — 안에 비상 전원 레버. (HOLD TO RESTORE POWER)");
+        yield return dlg.Sequence("배선 완료. 배전함 안쪽에서 낮은 웅 소리가 난다.", "큰 레버가 보인다. 옆에 작은 글씨: HOLD TO RESTORE POWER");
     }
 
     IEnumerator PowerOn()
@@ -634,6 +694,7 @@ public class Chapter02Manager : MonoBehaviour
         new[] { "모든 문은 같아 보이지만, 소리는 다르다.", "객실 복도의 문을 왼쪽부터 하나씩 두드려 보자.", "각 문에서 들리는 노크 횟수를 숫자로 바꾸면 된다." },
         new[] { "배전함 앞의 덮개가 위로 열릴 것 같다.", "덮개를 위쪽으로 밀어 보자.", "덮개를 위로 스와이프하자." },
         new[] { "", "UV 손전등을 선택하고, 복도 입구의 빈 벽을 길게 비춰 보자.", "노크 횟수를 왼쪽 문부터 순서대로 적으면 → 관리 코드 312." },
+        new[] { "", "왼쪽 전선을 끌어서 같은 색 오른쪽 단자에 놓자.", "빨간 선은 끊어져 있다. 아이템 칸에서 WIRE 를 고르고 끊어진 빨간 선을 탭하자." },
         new[] { "레버는 손을 떼면 다시 올라간다.", "레버를 꾹 누르고 있어 보자.", "레버를 2초 동안 누르고 있으면 전원이 돌아온다." },
         new[] { "전기가 들어왔다.", "복도 끝 비상구로 가 보자.", "비상구를 탭하자." },
     };
@@ -643,8 +704,9 @@ public class Chapter02Manager : MonoBehaviour
         if (!(knocked[0] && knocked[1] && knocked[2])) return 0;
         if (!flapOpen) return 1;
         if (!boxUnlocked) return 2;
-        if (!powerOn) return 3;
-        return 4;
+        if (!wiringDone) return 3;
+        if (!powerOn) return 4;
+        return 5;
     }
 
     void Update()
@@ -663,8 +725,10 @@ public class Chapter02Manager : MonoBehaviour
         int st = CurrentStage();
         if (st != hintStage) { hintStage = st; hintLevel = 0; }
         string h = Hints[st][Mathf.Min(hintLevel, 2)];
-        if (h == "")   // 관리 코드 1단계: 점검표를 봤는지에 따라
+        if (h == "" && st == 2)   // 관리 코드 1단계: 점검표를 봤는지에 따라
             h = cartMoved ? "청소 점검표: \"문이 대답하는 횟수를 기억할 것.\"" : "복도 입구의 청소 카트를 옆으로 밀어 보자. 아래에 무언가 있다.";
+        if (h == "" && st == 3)   // 배선 1단계: 전선을 주웠는지에 따라
+            h = wireTaken ? "배전함을 탭해서 배선을 다시 이어 보자." : "객실 복도 가운데 문 아래에 떨어진 전선을 주워 오자.";
         hintLevel++;
         idle = 0f;
         Run(dlg.Sequence("힌트 " + Mathf.Min(hintLevel, 3) + "/3|" + h));

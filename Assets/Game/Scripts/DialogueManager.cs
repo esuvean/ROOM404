@@ -3,6 +3,11 @@
 //  - Sequence("나|문장"...) : 탭해서 넘기는 대사 (전화 이벤트 등)
 //  - Auto("문장", 시간)     : 연출용, 탭 없이 자동으로 넘어가는 대사
 //  "말하는사람|내용" 형식으로 쓰면 이름이 표시됩니다.
+//  말하는 사람마다 글자 소리가 다릅니다.
+//   나 / 설명        → blip (기본)
+//   ???  (전화 속)   → voice_phone (낮고 두꺼운 소리, 조금 느리게)
+//   방송             → voice_radio (금속성 스피커 소리)
+//   404-09, 404-10  → voice_other (조금 낮고 흐릿한 '또 다른 나')
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +27,18 @@ public class DialogueManager : MonoBehaviour
 
     Coroutine sayCo;
     bool tapped;
+
+    string voice = "blip";
+    int voiceVariants = 1, voiceEvery = 2;
+    float voiceVolume = 0.6f, voiceSpeed = 1f;
+
+    void SetVoice(string sp)
+    {
+        if (sp == "???") { voice = "voice_phone"; voiceVariants = 3; voiceEvery = 3; voiceVolume = 0.85f; voiceSpeed = 1.5f; }
+        else if (sp == "방송") { voice = "voice_radio"; voiceVariants = 2; voiceEvery = 2; voiceVolume = 0.6f; voiceSpeed = 1.15f; }
+        else if (sp != null && sp.StartsWith("404-")) { voice = "voice_other"; voiceVariants = 2; voiceEvery = 2; voiceVolume = 0.6f; voiceSpeed = 1.1f; }
+        else { voice = "blip"; voiceVariants = 1; voiceEvery = 2; voiceVolume = 0.6f; voiceSpeed = 1f; }
+    }
 
     void Awake()
     {
@@ -53,6 +70,7 @@ public class DialogueManager : MonoBehaviour
 
     void SetSpeaker(string sp)
     {
+        SetVoice(sp);
         if (string.IsNullOrEmpty(sp)) { speakerText.text = ""; return; }
         speakerText.text = sp;
         speakerText.color = sp == "???" ? new Color(0.72f, 0.55f, 1f) : new Color(0.89f, 0.76f, 0.48f);
@@ -65,8 +83,9 @@ public class DialogueManager : MonoBehaviour
         {
             if (skippable && tapped) { tapped = false; break; }
             bodyText.text = body.Substring(0, i + 1);
-            if (i % 2 == 0 && body[i] != ' ' && body[i] != '.' && body[i] != '…') SoundManager.Play("blip", 0.6f);
-            yield return new WaitForSeconds(typeSpeed);
+            if (i % voiceEvery == 0 && body[i] != ' ' && body[i] != '.' && body[i] != '…')
+                SoundManager.Play(voiceVariants > 1 ? voice + Random.Range(1, voiceVariants + 1) : voice, voiceVolume);
+            yield return new WaitForSeconds(typeSpeed * voiceSpeed);
         }
         bodyText.text = body;
     }

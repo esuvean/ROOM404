@@ -754,6 +754,9 @@ public static class Room404Builder
             kt.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
             kt.gameObject.SetActive(false);
         }
+        var wireDrop = Ch2Art("WireDrop", vDoors, "obj_wire", 52, 126, true);
+        wireDrop.gameObject.AddComponent<InteractableObject>().id = "wire";
+        wireDrop.gameObject.SetActive(false);
 
         // 화면 3 — 배전함 구역
         var vPow = View("View_Power", "bg_power");
@@ -835,7 +838,7 @@ public static class Room404Builder
         inv.slots = slots; inv.icons = icons; inv.label = invLabel;
         inv.slotSprite = Spr("ui_slot"); inv.slotSelectedSprite = Spr("ui_slot_sel");
         inv.keyIcon = Spr("icon_key"); inv.uvIcon = Spr("icon_uv");
-        inv.extraIcons = new List<Sprite> { Spr("Ch2/icon_chalk") };
+        inv.extraIcons = new List<Sprite> { Spr("Ch2/icon_chalk"), Spr("Ch2/icon_wire") };
 
         // ---------------- ZoomPanel ----------------
         var zoomRt = Stretch(UI("ZoomPanel", cv));
@@ -878,6 +881,47 @@ public static class Room404Builder
         keypad.digits = digits; keypad.backButton = back; keypad.enterButton = enter; keypad.closeButton = close;
         keypad.dimCatcher = kpCatcher;
         keypad.answer = "312"; keypad.trap = "404"; keypad.length = 3; keypad.trapFlash = "404?";
+
+        // ---------------- WiringPanel (배선 연결 미니게임) — 아래 인벤토리는 가리지 않음 ----------------
+        var wpRt = FR(UI("WiringPanel", cv), 0, 0, FW, 734);
+        Img(wpRt, Spr("ui_white"), new Color(0, 0, 0, 0.82f), true);
+        var wBody = Center(UI("WiringBody", wpRt), 0, 20, 360, 440);
+        Img(wBody, Spr("ui_keypad"), Color.white, true);
+        Txt(TL(UI("WiringTitle", wBody), 0, 14, 360, 16), "MAINTENANCE · WIRING", 12, Dim, TextAnchor.MiddleCenter, true);
+        var wStatus = Txt(TL(UI("WiringStatus", wBody), 0, 36, 360, 30), "", 24, Cream, TextAnchor.MiddleCenter, true);
+        Color[] wc = { Hex("e0443a"), Hex("3f7ee0"), Hex("f0c838"), Hex("49c06a") };
+        var wLines = new RectTransform[4];
+        var wLeft = new RectTransform[4];
+        var wRight = new RectTransform[4];
+        var wRightImg = new Image[4];
+        for (int i = 0; i < 4; i++)
+        {
+            var ln = UI("WireLine_" + i, wBody);
+            ln.anchorMin = ln.anchorMax = new Vector2(0.5f, 0.5f);
+            ln.pivot = new Vector2(0f, 0.5f);
+            ln.sizeDelta = new Vector2(10, 14);
+            Img(ln, Spr("ui_white"), wc[i], false);
+            wLines[i] = ln;
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            float y = 96 + i * 78;
+            Img(TL(UI("WireSocketL_" + i, wBody), 20, y - 4, 72, 48), Spr("ui_white"), Hex("1a1f21"), false);
+            wLeft[i] = TL(UI("WireL_" + i, wBody), 28, y, 56, 40);
+            Img(wLeft[i], Spr("ui_white"), wc[i], true);
+            Img(TL(UI("Plug", wLeft[i]), 40, 12, 16, 16), Spr("ui_white"), Hex("cfd3d1"), false);
+            Img(TL(UI("WireSocketR_" + i, wBody), 268, y - 4, 72, 48), Spr("ui_white"), Hex("1a1f21"), false);
+            wRight[i] = TL(UI("WireR_" + i, wBody), 276, y, 56, 40);
+            wRightImg[i] = Img(wRight[i], Spr("ui_white"), Color.white, false);
+        }
+        var cut = TL(UI("CutMark", wBody), 92, 96, 40, 40);
+        Img(cut, Spr("ui_white"), Hex("2a2420"), false);
+        Txt(Stretch(UI("Label", cut)), "×", 24, Red, TextAnchor.MiddleCenter, true);
+        var wClose = TextButton("WiringClose", wpRt, "닫기", 24, Hex("2a2420"), Cream);
+        Center((RectTransform)wClose.transform, 0, -268, 160, 44);
+        var wp = gm.AddComponent<WiringPanel>();
+        wp.panel = wpRt.gameObject; wp.body = wBody; wp.left = wLeft; wp.right = wRight; wp.rightImages = wRightImg;
+        wp.lines = wLines; wp.cutMark = cut.gameObject; wp.status = wStatus; wp.closeButton = wClose; wp.colors = wc;
 
         // ---------------- CluePanel ----------------
         var clueRt = Stretch(UI("CluePanel", cv));
@@ -1145,6 +1189,27 @@ public static class Room404Builder
         keypad.digits = digits; keypad.backButton = back; keypad.enterButton = enter; keypad.closeButton = close;
         keypad.dimCatcher = kpCatcher;
         keypad.answer = "0414"; keypad.trap = "0404"; keypad.length = 4; keypad.trapFlash = "DENY";
+
+        // ---------------- SwipePanel (카드 긁기 미니게임) ----------------
+        var spRt = FR(UI("SwipePanel", cv), 0, 0, FW, 734);
+        Img(spRt, Spr("ui_white"), new Color(0, 0, 0, 0.82f), true);
+        var sBody = Center(UI("SwipeBody", spRt), 0, 20, 420, 330);
+        Img(sBody, Spr("ui_keypad"), Color.white, true);
+        Txt(TL(UI("SwipeTitle", sBody), 0, 14, 420, 16), "ID CARD READER", 12, Dim, TextAnchor.MiddleCenter, true);
+        Img(TL(UI("SwipeDisplayBg", sBody), 28, 36, 364, 52), Spr("ui_white"), Hex("0c1310"), false);
+        var sDisplay = Txt(TL(UI("SwipeDisplay", sBody), 28, 36, 364, 52), "PLEASE SWIPE CARD", 24, Cream, TextAnchor.MiddleCenter, true);
+        var sLamp = Img(TL(UI("SwipeLamp", sBody), 380, 12, 20, 16), Spr("ui_white"), new Color(0.3f, 0.3f, 0.3f), false);
+        var track = Center(UI("SwipeTrack", sBody), 0, -40, 380, 130);
+        Img(track, Spr("ui_white"), Hex("1a1f21"), false);
+        Img(TL(UI("SwipeSlot", track), 0, 60, 380, 10), Spr("ui_white"), Color.black, false);
+        Txt(TL(UI("SwipeArrow", track), 0, 104, 380, 20), "카드를 오른쪽 끝까지 긁으세요  →", 12, Dim, TextAnchor.MiddleCenter, true);
+        var cardRt = Center(UI("SwipeCard", track), -110, 6, 140, 90);
+        Img(cardRt, Spr("Ch3/zoom_card"), Color.white, true);
+        var sClose = TextButton("SwipeClose", spRt, "닫기", 24, Hex("2a2420"), Cream);
+        Center((RectTransform)sClose.transform, 0, -230, 160, 44);
+        var cs = cardRt.gameObject.AddComponent<CardSwipe>();
+        cs.panel = spRt.gameObject; cs.body = sBody; cs.card = cardRt; cs.display = sDisplay; cs.lamp = sLamp; cs.closeButton = sClose;
+        cs.startX = -110; cs.endX = 110;
 
         // ---------------- CluePanel ----------------
         var clueRt = Stretch(UI("CluePanel", cv));
