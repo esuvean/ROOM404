@@ -7,11 +7,13 @@ public class TitleScreen : MonoBehaviour
     public Text tapText;
     public TapCatcher catcher;
     public Image bg;
+    public Text logo;        // ENDING B 를 본 뒤에는 04:05 로 바뀜
     bool started;
 
     void Start()
     {
         SoundManager.Amb("amb_corridor", 0.45f);
+        if (logo != null && PlayerPrefs.GetInt("0404_endingB", 0) == 1) logo.text = "04:05";
         catcher.onTap += OnTap;
     }
 

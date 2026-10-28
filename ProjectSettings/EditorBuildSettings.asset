@@ -20,6 +20,18 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Game/Scenes/Chapter02_Clear.unity
     guid: 1ddd47d8234319a40a5d614c0df1d2b1
+  - enabled: 1
+    path: Assets/Game/Scenes/Chapter03_Observation.unity
+    guid: 945b83ebed3c241428e55e26d6305a64
+  - enabled: 1
+    path: Assets/Game/Scenes/Chapter03_Clear.unity
+    guid: 3c0e53ccceddb6743959a53eb29959b4
+  - enabled: 1
+    path: Assets/Game/Scenes/Chapter04_WakeUp.unity
+    guid: eb4152cbf730eda4c95c8671633684bb
+  - enabled: 1
+    path: Assets/Game/Scenes/Ending.unity
+    guid: e8528a304fbe0124e8ee8e5da699f43b
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

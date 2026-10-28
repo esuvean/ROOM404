@@ -16,6 +16,7 @@ public class HoldLever : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, 
     public Image fill;                  // Filled 이미지
     public Text percent;
     public string tapId = "lever";
+    public string label = "POWER";      // 게이지 글자 (Chapter 3 지문 스캐너는 "SCAN")
     public bool done;
 
     public Func<bool> canHold;
@@ -90,7 +91,7 @@ public class HoldLever : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, 
     {
         float k = progress / holdTime;
         if (fill != null) fill.fillAmount = k;
-        if (percent != null) percent.text = "POWER " + (Mathf.FloorToInt(k * 4f + 0.0001f) * 25) + "%";
+        if (percent != null) percent.text = label + " " + (Mathf.FloorToInt(k * 4f + 0.0001f) * 25) + "%";
         if (handle != null && !done)
         {
             Vector2 shake = holding ? new Vector2(UnityEngine.Random.Range(-1.5f, 1.5f), 0) : Vector2.zero;

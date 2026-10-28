@@ -39,7 +39,18 @@ public class HoldReveal : MonoBehaviour, IPointerDownHandler, IPointerUpHandler,
     {
         bool shortTap = Time.time - downTime < 0.35f && (e.position - downPos).magnitude < Screen.height * 0.03f;
         holding = false;
-        if (shortTap) TapRouter.Send(tapId);
+        if (shortTap)
+        {
+            // 안쪽에 TapTag 가 붙은 부분(예: 보관함 서랍)을 탭했으면 그 id 를 보냄
+            string id = tapId;
+            var hit = e.pointerPressRaycast.gameObject;
+            if (hit != null)
+            {
+                var tag = hit.GetComponentInParent<TapTag>();
+                if (tag != null && tag.transform.IsChildOf(transform)) id = tag.id;
+            }
+            TapRouter.Send(id);
+        }
     }
 
     public void OnPointerExit(PointerEventData e) { holding = false; }

@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 // 오브젝트를 탭하면 지금 챕터의 관리자(Chapter01Manager / Chapter02Manager)에게 id 를 전달
@@ -21,8 +22,22 @@ public static class GameState
 {
     public static float startTime;
     public static float clearSeconds = -1f;
+    public static string ending = "";   // 마지막 챕터에서 고른 결말 (A / B)
+    public static bool retryChoice;     // 엔딩 화면의 [다른 결말 보기] → 관제실 선택 장면부터 다시
+    public static bool fromRetry;       // 방금 본 엔딩이 '다시 선택' 으로 본 것인지
     public static void StartRun() { startTime = Time.time; clearSeconds = -1f; }
-    public static void EndRun() { clearSeconds = Time.time - startTime; }
+    // 챕터별 클리어 기록 (씬 이름 → 걸린 초). Chapter 3 출입 기록표에 쓰임
+    public static readonly Dictionary<string, float> records = new Dictionary<string, float>();
+    public static void EndRun()
+    {
+        clearSeconds = Time.time - startTime;
+        records[SceneManager.GetActiveScene().name] = clearSeconds;
+    }
+    public static string Format(float sec)
+    {
+        int m = Mathf.FloorToInt(sec / 60f), s = Mathf.FloorToInt(sec % 60f);
+        return m > 0 ? $"{m}분 {s}초" : $"{s}초";
+    }
 }
 
 public static class UIFx
